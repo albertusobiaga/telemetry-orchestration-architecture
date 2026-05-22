@@ -1,0 +1,38 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Cooling_Jacket_Sanitized_Telemetry_Contract",
+  "description": "Flattened telemetry payload for Chiller unit operations.",
+  "type": "object",
+  "properties": {
+    "event_metadata": {
+      "type": "object",
+      "properties": {
+        "event_id": { "type": "string", "format": "uuid" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "facility_id": { "type": "string" },
+        "machine_id": { "type": "string", "description": "Format: CHIL-[ID]" }
+      },
+      "required": ["event_id", "timestamp", "facility_id", "machine_id"]
+    },
+    "telemetry": {
+      "type": "object",
+      "properties": {
+        "sensor_type": { "type": "string", "enum": ["inlet_temp", "coolant_flow"] },
+        "reading_value": { "type": "number" },
+        "unit_of_measure": { "type": "string", "enum": ["C", "LPM"] },
+        "valve_position": { "type": "integer", "minimum": 0, "maximum": 100 }
+      },
+      "required": ["sensor_type", "reading_value", "unit_of_measure"]
+    },
+    "target_correlation": {
+      "type": "object",
+      "properties": {
+        "paired_cstr_id": { 
+          "type": "string", 
+          "description": "The target Bioreactor this chiller is cooling." 
+        }
+      },
+      "required": ["paired_cstr_id"]
+    }
+  }
+}

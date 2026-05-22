@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Gold_Layer_Feature_API",
+  "description": "Contractual interface for ML model consumption.",
+  "type": "object",
+  "properties": {
+    "batch_id": { "type": "string" },
+    "event_timestamp": { "type": "string", "format": "date-time" },
+    "thermal_delta": { 
+      "type": "number", 
+      "description": "Calculated difference (CSTR - Chiller)." 
+    },
+    "thermal_drift_5min": { 
+      "type": "number", 
+      "description": "Rolling 5min average feature. Contractually guaranteed precision." 
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "schema_version": { "type": "string", "const": "1.0.0" },
+        "pipeline_status": { "type": "string", "enum": ["production", "staged"] }
+      }
+    }
+  },
+  "required": ["batch_id", "thermal_drift_5min"]
+}

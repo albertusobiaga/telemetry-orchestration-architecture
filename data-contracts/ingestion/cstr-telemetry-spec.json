@@ -1,0 +1,39 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "CSTR_Sanitized_Telemetry_Contract",
+  "description": "Flattened telemetry payload for Spanner ingestion.",
+  "type": "object",
+  "properties": {
+    "event_metadata": {
+      "type": "object",
+      "properties": {
+        "event_id": { "type": "string", "format": "uuid" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "facility_id": { "type": "string", "enum": ["EU-01", "EU-02", "REDACTED"] },
+        "machine_id": { "type": "string", "description": "Format: CSTR-[ID]" }
+      },
+      "required": ["event_id", "timestamp", "facility_id", "machine_id"]
+    },
+    "telemetry": {
+      "type": "object",
+      "properties": {
+        "sensor_type": { "type": "string", "enum": ["thermal", "pressure", "agitation"] },
+        "reading_value": { "type": "number" },
+        "unit_of_measure": { "type": "string", "enum": ["C", "PSI", "RPM"] },
+        "variance_band": { 
+          "type": "string", 
+          "description": "Tolerance deviation for [REDACTED_API_TARGET] synthesis." 
+        }
+      },
+      "required": ["sensor_type", "reading_value", "unit_of_measure"]
+    },
+    "operational_context": {
+      "type": "object",
+      "properties": {
+        "batch_id": { "type": "string" },
+        "maintenance_mode": { "type": "boolean" }
+      },
+      "required": ["batch_id", "maintenance_mode"]
+    }
+  }
+}

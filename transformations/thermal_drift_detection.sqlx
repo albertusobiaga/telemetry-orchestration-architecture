@@ -1,0 +1,44 @@
+config {
+  type: "table",
+  description: "Aggregates thermal delta between CSTR and Chiller for ML predictive maintenance model.",
+  columns: {
+    batch_id: "The identifier for the manufacturing batch.",
+    thermal_drift_5min: "Rolling 5-minute average of the thermal delta between CSTR and Chiller."
+  }
+}
+
+WITH base_telemetry AS (
+  SELECT 
+    event_timestamp,
+    machine_id,
+    batch_id,
+    reading_value,
+    sensor_type
+  FROM ${ref("TelemetryEvents")} -- This is the Dataform reference to your clean Spanner data
+),
+
+cstr_data AS (
+  SELECT * FROM base_telemetry WHERE sensor_type = 'thermal' AND machine_id LIKE 'CSTR-%'
+),
+
+chiller_data AS (
+  -- Join logic: Use the target_correlation metadata to align the chiller with its CSTR
+  SELECT 
+    c.event_timestamp,
+    c.reading_value AS chiller_temp,
+    c.paired_cstr_id
+  FROM ${ref("ChillerTelemetry")} c
+)
+
+SELECT
+  cstr.batch_id,
+  cstr.event_timestamp,
+  (cstr.reading_value - chill.chiller_temp) AS thermal_delta,
+  AVG(cstr.reading_value - chill.chiller_temp) OVER (
+    PARTITION BY cstr.batch_id 
+    ORDER BY cstr.event_timestamp 
+    ROWS BETWEEN 30 PRECEDING AND CURRENT ROW -- Assuming 10Hz, 30 samples is ~3s; adjust for 5min window
+  ) AS thermal_drift_5min
+FROM cstr_data cstr
+JOIN chiller_data chill ON cstr.machine_id = chill.paired_cstr_id 
+  AND TIMESTAMP_DIFF(cstr.event_timestamp, chill.event_timestamp, SECOND) < 5
