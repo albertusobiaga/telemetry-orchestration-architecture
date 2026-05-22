@@ -2,43 +2,61 @@ config {
   type: "table",
   description: "Aggregates thermal delta between CSTR and Chiller for ML predictive maintenance model.",
   columns: {
-    batch_id: "The identifier for the manufacturing batch.",
+    BatchID: "The identifier for the manufacturing batch.",
     thermal_drift_5min: "Rolling 5-minute average of the thermal delta between CSTR and Chiller."
   }
 }
 
 WITH base_telemetry AS (
   SELECT 
-    event_timestamp,
-    machine_id,
-    batch_id,
-    reading_value,
-    sensor_type
-  FROM ${ref("TelemetryEvents")} -- This is the Dataform reference to your clean Spanner data
+    FacilityID,
+    MachineID,
+    BatchID,
+    EventTimestamp,
+    -- Strategic Alignment: Time-bucketing to the nearest second to create a hard join key
+    TIMESTAMP_TRUNC(EventTimestamp, SECOND) AS JoinTimestamp,
+    ReadingValue,
+    SensorType
+  FROM ${ref("TelemetryEvents")}
+  WHERE MaintenanceMode = FALSE
 ),
 
 cstr_data AS (
-  SELECT * FROM base_telemetry WHERE sensor_type = 'thermal' AND machine_id LIKE 'CSTR-%'
+  SELECT * FROM base_telemetry 
+  WHERE SensorType = 'thermal' AND MachineID LIKE 'CSTR-%'
 ),
 
 chiller_data AS (
-  -- Join logic: Use the target_correlation metadata to align the chiller with its CSTR
-  SELECT 
-    c.event_timestamp,
-    c.reading_value AS chiller_temp,
-    c.paired_cstr_id
-  FROM ${ref("ChillerTelemetry")} c
+  SELECT * FROM base_telemetry 
+  WHERE SensorType = 'inlet_temp' AND MachineID LIKE 'CHIL-%'
+),
+
+aligned_telemetry AS (
+  SELECT
+    cstr.BatchID,
+    cstr.FacilityID,
+    cstr.EventTimestamp AS cstr_timestamp,
+    cstr.ReadingValue AS cstr_temp,
+    chill.ReadingValue AS chiller_temp,
+    (cstr.ReadingValue - chill.ReadingValue) AS thermal_delta
+  FROM cstr_data cstr
+  -- Join based on the Batch and the truncated time bucket
+  JOIN chiller_data chill 
+    ON cstr.BatchID = chill.BatchID 
+    AND cstr.FacilityID = chill.FacilityID
+    AND cstr.JoinTimestamp = chill.JoinTimestamp
+  -- Deduplicate: If multiple readings exist in the same second, take the latest
+  QUALIFY ROW_NUMBER() OVER(PARTITION BY cstr.BatchID, cstr.EventTimestamp ORDER BY chill.EventTimestamp DESC) = 1
 )
 
 SELECT
-  cstr.batch_id,
-  cstr.event_timestamp,
-  (cstr.reading_value - chill.chiller_temp) AS thermal_delta,
-  AVG(cstr.reading_value - chill.chiller_temp) OVER (
-    PARTITION BY cstr.batch_id 
-    ORDER BY cstr.event_timestamp 
-    ROWS BETWEEN 30 PRECEDING AND CURRENT ROW -- Assuming 10Hz, 30 samples is ~3s; adjust for 5min window
+  BatchID,
+  cstr_timestamp,
+  thermal_delta,
+  AVG(thermal_delta) OVER (
+    PARTITION BY BatchID 
+    ORDER BY cstr_timestamp 
+    -- 5-minute rolling average (assuming ~10Hz resolution, ~3000 rows)
+    ROWS BETWEEN 3000 PRECEDING AND CURRENT ROW 
   ) AS thermal_drift_5min
-FROM cstr_data cstr
-JOIN chiller_data chill ON cstr.machine_id = chill.paired_cstr_id 
-  AND TIMESTAMP_DIFF(cstr.event_timestamp, chill.event_timestamp, SECOND) < 5
+FROM aligned_telemetry
