@@ -67,3 +67,10 @@ Cons: * Increased Latency: Real-time data availability in Spanner is delayed by 
 Complexity: Requires handling "late-arrival" data if the gateway buffer flushes intermittently.
 Alternatives Rejected: Direct Synchronous API Writes
 Why: Synchronous writing at 50Hz would lock our Spanner nodes during high-burst events, causing backpressure in the production line. We prioritize system resilience over sub-second event visibility.
+
+## 5. Global Compliance & Data Integrity Strategy (ALCOA+)
+**Status:** Accepted
+**Context:** The system must meet global pharmaceutical manufacturing standards, including FDA 21 CFR Part 11 and EU GMP Annex 11.
+**Decision:** We adopt the ALCOA+ framework as our architectural North Star. Every data ingestion contract, storage DDL, and transformation logic is audited against the ALCOA+ standard to ensure data remains trustworthy throughout its lifecycle.
+**Consequences:**
+* This shifts our development focus from "raw data storage" to "data reliability," ensuring our ledger is tamper-evident and audit-ready for any regulatory body, regardless of geographic jurisdiction.

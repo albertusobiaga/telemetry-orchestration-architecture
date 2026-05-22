@@ -1,6 +1,6 @@
 # Pharmaceutical Factory IoT Telemetry Orchestration (Sanitized Blueprint)
 
-> **Security & Compliance Disclaimer:** > This repository is a sanitized architectural blueprint authorized for public portfolio release. Specific facility codes, hardware vendor IDs, proprietary chemical tolerance bands, API identifiers, and exact physical facility locations have been redacted or replaced with generic identifiers to comply with NDA and FDA 21 CFR Part 11 security guidelines.
+> **Security & Compliance Disclaimer:** > This repository is a sanitized architectural blueprint authorized for public portfolio release. Specific facility codes, hardware vendor IDs, proprietary chemical tolerance bands, API identifiers, and exact physical facility locations have been redacted or replaced with generic identifiers to comply with NDA, with global data integrity standards, specifically **FDA 21 CFR Part 11** and **EU GMP Annex 11**.
 
 ## Executive Summary
 This repository contains the architectural blueprints, data contracts, and decision logs for a high-frequency IoT ingestion and analytical pipeline designed for a critical pharmaceutical production line. The system ingests continuous telemetry from manufacturing equipment, enforcing strict relational integrity for real-time alerting before bridging the data into an analytical feature store for downstream predictive maintenance models.
