@@ -26,6 +26,31 @@ Consequences:
 Alternatives Rejected: Azure Event Hubs + Databricks (Delta Lake)
 Why: While a Delta Lake structure on Azure provides cost-effective storage and powerful analytical processing, it operates on an object-storage abstraction layer. For a pharmaceutical production line, micro-batching latencies and eventual consistency models pose an architectural risk. If an alerting system misses an operational state transition due to storage commit delays, a batch of medicine could be compromised before the pipeline registers the anomaly. We prioritized real-time relational consistency and compliance isolation over cheap analytical storage.
 
+```mermaid
+erDiagram
+    Assets ||--o{ TelemetryEvents : "Interleaved (1:N)"
+    
+    Assets {
+        string FacilityID PK
+        string MachineID PK
+        string AssetType
+        date InstallationDate
+        string Status
+    }
+    
+    TelemetryEvents {
+        string FacilityID PK, FK
+        string MachineID PK, FK
+        timestamp EventTimestamp PK
+        string EventID 
+        string SensorType
+        float ReadingValue
+        string UnitOfMeasure
+        string BatchID
+        boolean MaintenanceMode
+    }
+  ```
+
 ## 2. Analytical Transformation Boundary: Dataform (SQLX) vs. Procedural Pipelines (Python/Beam)##
 Status: Accepted (Sanitized)
 Context: Raw continuous telemetry from the [REDACTED] Bioreactor arrays is successfully landing in Cloud Spanner. However, the downstream Data Science team requires aggregated, time-windowed feature tables (e.g., 5-minute rolling averages of thermal drift) to train the predictive maintenance models ([REDACTED_MODEL_V3]). We require an ELT layer to bridge the operational ledger (Spanner) and the analytical feature store (BigQuery).
@@ -67,3 +92,10 @@ Cons: * Increased Latency: Real-time data availability in Spanner is delayed by 
 Complexity: Requires handling "late-arrival" data if the gateway buffer flushes intermittently.
 Alternatives Rejected: Direct Synchronous API Writes
 Why: Synchronous writing at 50Hz would lock our Spanner nodes during high-burst events, causing backpressure in the production line. We prioritize system resilience over sub-second event visibility.
+
+## 5. Global Compliance & Data Integrity Strategy (ALCOA+)
+**Status:** Accepted
+**Context:** The system must meet global pharmaceutical manufacturing standards, including FDA 21 CFR Part 11 and EU GMP Annex 11.
+**Decision:** We adopt the ALCOA+ framework as our architectural North Star. Every data ingestion contract, storage DDL, and transformation logic is audited against the ALCOA+ standard to ensure data remains trustworthy throughout its lifecycle.
+**Consequences:**
+* This shifts our development focus from "raw data storage" to "data reliability," ensuring our ledger is tamper-evident and audit-ready for any regulatory body, regardless of geographic jurisdiction.
